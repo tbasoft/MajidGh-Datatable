@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>جدول با Tabulator و Bootstrap 5</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="src/bootstrap.rtl.min.css" rel="stylesheet" />
+
+    <!-- Tabulator CSS -->
+    <link href="src/tabulator.min.css" rel="stylesheet" />
+    <style>
+
+
+
+
+
+
+    </style>
+
+</head>
+
+<body class="container py-4">
+
+    <div class="mb-3 d-flex justify-content-between">
+        <input type="text" id="search-input" class="form-control w-25" placeholder="جستجو..." />
+        <button id="download-csv" class="btn btn-primary">دانلود CSV</button>
+    </div>
+
+    <div id="example-table"></div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-rtl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detailsModalLabel">جزئیات رکورد</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="بستن"></button>
+                </div>
+                <div class="modal-body" id="modal-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="src/bootstrap.bundle.min.js"></script>
+    <script src="src/tabulator.min.js"></script>
+
+    <script>
+        var faLang = {
+            columns: {
+                name: "نام",
+                progress: "پیشرفت",
+                gender: "جنسیت",
+                rating: "امتیاز",
+                col: "رنگ",
+                dob: "تاریخ تولد",
+            },
+            pagination: {
+                first: "اولین",
+                first_title: "صفحه اول",
+                last: "آخرین",
+                last_title: "صفحه آخر",
+                prev: "قبلی",
+                prev_title: "صفحه قبلی",
+                next: "بعدی",
+                next_title: "صفحه بعدی",
+                all: "همه",
+                counter: {
+                    showing: "نمایش",
+                    of: "از",
+                    rows: "ردیف",
+                    pages: "صفحه",
+                },
+            },
+            headerFilters: {
+                default: "فیلتر ستون...",
+            },
+            data: {
+                loading: "در حال بارگذاری...",
+                error: "خطا در بارگذاری داده‌ها",
+            },
+        };
+
+        var table = new Tabulator("#example-table", {
+            layout: "fitColumns",
+            responsiveLayout: "collapse",
+            textDirection: "rtl",
+            layout: "fitColumns",
+            height: "100%",
+            pagination: "local",
+            paginationSize: 10,
+            langs: { fa: faLang },
+            locale: "fa",
+            ajaxURL: "https://jsonplaceholder.typicode.com/users",
+            ajaxResponse: function (url, params, response) {
+                return response;
+            },
+            columns: [
+                { title: "شناسه", field: "id", sorter: "number", headerFilter: "input" },
+                { title: "نام", field: "name", sorter: "string", headerFilter: "input" },
+                { title: "ایمیل", field: "email", sorter: "string", headerFilter: "input" , headerFilterPlaceholder: "فیلتر ایمیل", },
+                { title: "تلفن", field: "phone", headerFilter: "input" },
+                {
+                    title: "عملیات",
+                    formatter: function (cell) {
+                        return "<button class='btn btn-sm btn-outline-info'>جزئیات</button>";
+                    },
+                    width: 100,
+                    hozAlign: "center",
+                    cellClick: function (e, cell) {
+                        var data = cell.getRow().getData();
+                        openModal(data);
+                    },
+
+
+                },
+            ],
+        });
+
+        // جستجوی OR بین ستون‌ها
+        document.getElementById("search-input").addEventListener("keyup", function () {
+            var keyword = this.value;
+            table.setFilter([
+                [
+                    { field: "name", type: "like", value: keyword },
+                    { field: "email", type: "like", value: keyword },
+                    { field: "phone", type: "like", value: keyword }
+                ]
+            ]);
+        });
+
+        // دانلود CSV با BOM برای UTF-8 صحیح
+        document.getElementById("download-csv").addEventListener("click", function () {
+            table.download("csv", "data.csv", { bom: true });
+        });
+
+        function openModal(data) {
+            var html = `
+                <p><strong>شناسه:</strong> ${data.id}</p>
+                <p><strong>نام:</strong> ${data.name}</p>
+                <p><strong>ایمیل:</strong> ${data.email}</p>
+                <p><strong>تلفن:</strong> ${data.phone}</p>
+                <p><strong>شرکت:</strong> ${data.company?.name || "-"}</p>
+                <p><strong>آدرس:</strong> ${data.address?.city || ""}، ${data.address?.street || ""}</p>
+            `;
+            document.getElementById("modal-body").innerHTML = html;
+
+            var modal = new bootstrap.Modal(document.getElementById("detailsModal"));
+            modal.show();
+        }
+    </script>
+</body>
+
+</html>
