@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>جدول با Tabulator و Bootstrap 5</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="src/bootstrap.rtl.min.css" rel="stylesheet" />
+
+    <!-- Tabulator CSS -->
+    <link href="src/tabulator.min.css" rel="stylesheet" />
+
+    <!-- Alpine.js -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+
+<body class="container py-4" x-data="tableApp()" x-init="init()">
+
+    <div class="mb-3 d-flex justify-content-between">
+        <!-- Original client-side search -->
+        <input type="text" id="search-input" class="form-control w-25" placeholder="جستجو (نام، ایمیل یا تلفن)..."
+            @keyup.debounce.300ms="clientSearch" />
+
+        <!-- Backend email search -->
+        <input type="text" id="backend-email-search" class="form-control w-25" placeholder="جستجو ایمیل (سرور)..."
+            x-model="backendEmail" @keyup.enter="backendEmailSearch" @keyup.debounce.300ms="backendEmailSearch"
+            @input="backendEmailClear" />
+
+        <button id="download-csv" class="btn btn-primary" @click="downloadCSV()">دانلود CSV</button>
+    </div>
+
+    <div id="example-table"></div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-rtl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detailsModalLabel">جزئیات رکورد</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="بستن"></button>
+                </div>
+                <div class="modal-body" id="modal-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="src/bootstrap.bundle.min.js"></script>
+    <script src="src/tabulator.min.js"></script>
+
+    <script>
+        function tableApp() {
+            return {
+                backendEmail: '',
+                table: null,
+
+                faLang: {
+                    columns: {
+                        name: "نام",
+                        progress: "پیشرفت",
+                        gender: "جنسیت",
+                        rating: "امتیاز",
+                        col: "رنگ",
+                        dob: "تاریخ تولد",
+                    },
+                    pagination: {
+                        first: "اولین",
+                        first_title: "صفحه اول",
+                        last: "آخرین",
+                        last_title: "صفحه آخر",
+                        prev: "قبلی",
+                        prev_title: "صفحه قبلی",
+                        next: "بعدی",
+                        next_title: "صفحه بعدی",
+                        all: "همه",
+                        counter: {
+                            showing: "نمایش",
+                            of: "از",
+                            rows: "ردیف",
+                            pages: "صفحه",
+                        },
+                    },
+                    headerFilters: {
+                        default: "فیلتر ستون...",
+                    },
+                    data: {
+                        loading: "در حال بارگذاری...",
+                        error: "خطا در بارگذاری داده‌ها",
+                    },
+                },
+
+                init() {
+                    this.table = new Tabulator("#example-table", {
+                        layout: "fitColumns",
+                        responsiveLayout: "collapse",
+                        textDirection: "rtl",
+                        height: "100%",
+                        pagination: "local",
+                        paginationSize: 10,
+                        langs: { fa: this.faLang },
+                        locale: "fa",
+                        ajaxURL: "https://jsonplaceholder.typicode.com/users",
+                        ajaxResponse: (url, params, response) => response,
+                        columns: [
+                            { title: "شناسه", field: "id", sorter: "number", headerFilter: "input" },
+                            { title: "نام", field: "name", sorter: "string", headerFilter: "input" },
+                            { title: "ایمیل", field: "email", sorter: "string", headerFilter: "input", headerFilterPlaceholder: "فیلتر ایمیل", },
+                            { title: "تلفن", field: "phone", headerFilter: "input" },
+                            {
+                                title: "عملیات",
+                                formatter: () => "<button class='btn btn-sm btn-outline-info'>جزئیات</button>",
+                                width: 100,
+                                hozAlign: "center",
+                                cellClick: (e, cell) => this.openModal(cell.getRow().getData()),
+                            },
+                        ],
+                    });
+                },
+
+                clientSearch(event) {
+                    let keyword = event.target.value;
+                    // Only apply filter if backendEmail is empty to avoid conflict
+                    if (this.backendEmail.trim() === '') {
+                        this.table.setFilter([
+                            [
+                                { field: "name", type: "like", value: keyword },
+                                { field: "email", type: "like", value: keyword },
+                                { field: "phone", type: "like", value: keyword }
+                            ]
+                        ]);
+                    }
+                },
+
+                backendEmailSearch() {///user id search
+                    let emailTerm = this.backendEmail.trim();
+                    if (emailTerm.length === 0) {
+                        // If empty, reset table to original data & clear filters
+                        this.table.clearFilter(true);
+                        this.table.setData("https://jsonplaceholder.typicode.com/users");
+                        return;
+                    }
+
+                    // fetch(`/api/users/search?emailTerm=${encodeURIComponent(emailTerm)}`)
+                    fetch(`https://jsonplaceholder.typicode.com/users/${encodeURIComponent(emailTerm)}`)
+                        .then(res => {
+                            if (!res.ok) throw new Error("Error loading data");
+                            console.log(res);
+                            return res.json();
+                        })
+                        .then(data => {
+                            this.table.clearFilter(true);
+                            this.table.setData([data]);
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            alert("خطا در دریافت داده‌ها از سرور");
+                        });
+                },
+
+                backendEmailClear() {
+                    if (this.backendEmail.trim() === '') {
+                        // On clearing the backend email search input,
+                        // reset table to original data and clear filters
+                        this.table.clearFilter(true);
+                        this.table.setData("https://jsonplaceholder.typicode.com/users");
+                    }
+                },
+
+                downloadCSV() {
+                    this.table.download("csv", "data.csv", { bom: true });
+                },
+
+                openModal(data) {
+                    const html = `
+                        <p><strong>شناسه:</strong> ${data.id}</p>
+                        <p><strong>نام:</strong> ${data.name}</p>
+                        <p><strong>ایمیل:</strong> ${data.email}</p>
+                        <p><strong>تلفن:</strong> ${data.phone}</p>
+                        <p><strong>شرکت:</strong> ${data.company?.name || "-"}</p>
+                        <p><strong>آدرس:</strong> ${data.address?.city || ""}، ${data.address?.street || ""}</p>
+                    `;
+                    document.getElementById("modal-body").innerHTML = html;
+
+                    var modal = new bootstrap.Modal(document.getElementById("detailsModal"));
+                    modal.show();
+                },
+            }
+        }
+    </script>
+
+</body>
+
+</html>
